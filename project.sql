@@ -313,6 +313,24 @@ insert into [google_portfplio_project].[dbo].[null_free]
 select *
 from [google_portfplio_project].[dbo].[null_free]
 -----------------------remove Temp and unwanted spaces--------------------------
+delete from [google_portfplio_project].[dbo].[null_free]
+where ended_at < started_at;
+
+select count(distinct ride_id)
+from [google_portfplio_project].[dbo].[null_free]
+where LEN(ride_id) = 16;
+
+select count(distinct ride_id)
+from [google_portfplio_project].[dbo].[null_free];
+
+update [google_portfplio_project].[dbo].[null_free]
+set ride_id = ride_id
+where LEN(ride_id) = 16;
+
+select *
+from [google_portfplio_project].[dbo].[null_free]
+where start_station_name like '%TEMP%';
+
 SELECT ride_id,
 	TRIM(REPLACE
 		(REPLACE
@@ -325,21 +343,17 @@ SELECT ride_id,
 	
 
 	FROM [google_portfplio_project].[dbo].[null_free]
-	WHERE start_station_name NOT LIKE '%(LBS-WH-TEST)%';
+	WHERE start_station_name NOT LIKE '%(LBS-WH-TEST)%'
+	and end_station_name NOT LIKE '%(LBS-WH-TEST)%';
 
 update [google_portfplio_project].[dbo].[null_free]
 set start_station_name = TRIM(REPLACE
 		(REPLACE
 			(start_station_name, '(*)',''),
 				'(TEMP)',''))
-				WHERE start_station_name NOT LIKE '%(LBS-WH-TEST)%';
+				WHERE start_station_name NOT LIKE '%(LBS-WH-TEST)%'
+				and end_station_name NOT LIKE '%(LBS-WH-TEST)%';
 
-update [google_portfplio_project].[dbo].[null_free]
-set end_station_name = TRIM(REPLACE
-		(REPLACE
-			(end_station_name, '(*)',''),
-				'(TEMP)',''))
-				WHERE end_station_name NOT LIKE '%(LBS-WH-TEST)%';
 --------- --------------------------------------------------------------Analytics queries---------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 --1. total casual riders departing-----
@@ -348,47 +362,80 @@ from [google_portfplio_project].[dbo].[null_free]
 where member_casual = 'casual'
 group by start_station_name;
 
--------------------2. total members departing----------------------------------------------
+select COUNT(member_casual) as registered_Customer, end_station_name
+from [google_portfplio_project].[dbo].[null_free]
+where member_casual = 'casual'
+group by end_station_name;
 
 select COUNT(member_casual) as registered_Customer, start_station_name
 from [google_portfplio_project].[dbo].[null_free]
-where member_casual = 'member'
+where member_casual = 'members'
 group by start_station_name;
 
------3. departing station Lat and LNG--------
-SELECT DISTINCT nf.ride_id, nf.start_station_name, ROUND(AVG(GP.start_lat),4) AS dep_lat, Round(AVG(GP.start_lng),4) AS dep_lng
+select COUNT(member_casual) as registered_Customer, end_station_name
+from [google_portfplio_project].[dbo].[null_free]
+where member_casual = 'member'
+group by end_station_name;
+
+-----2. departing station Lat and LNG--------
+select COUNT(NF.member_casual) as registered_Customer, NF.start_station_name,
+ROUND(AVG(GP.start_lat),4) AS dep_lat, 
+Round(AVG(GP.start_lng),4) AS dep_lng
 	FROM [google_portfplio_project].[dbo].[null_free] NF
 	join [google_portfplio_project].[dbo].[project] GP
 	on nf.ride_id = gp.ride_id
-	GROUP BY nf.ride_id, nf.start_station_name;
+where NF.member_casual = 'member'
+group by NF.start_station_name;
 
-----4. total casual customers arriving--------
+
+select distinct COUNT(nf.member_casual) as registered_Customer, nf.end_station_name, 
+ROUND(AVG(GP.end_lat),4) AS arr_lat, 
+Round(AVG(GP.end_lng),4) AS arr_lng
+	FROM [google_portfplio_project].[dbo].[null_free] NF
+	join [google_portfplio_project].[dbo].[project] GP
+	on nf.ride_id = gp.ride_id
+	where nf.member_casual = 'members'
+	GROUP BY nf.member_casual, nf.end_station_name
+	order by nf.end_station_name;
+
+select distinct COUNT(nf.member_casual) as casual_Customer, nf.start_station_name,
+ROUND(AVG(GP.start_lat),4) AS casual_dep_lat, Round(AVG(GP.start_lng),4) AS casual_dep_lng
+	FROM [google_portfplio_project].[dbo].[null_free] NF
+	join [google_portfplio_project].[dbo].[project] GP
+	on nf.end_station_name = gp.end_station_name
+	where nf.member_casual = 'casual'
+	GROUP BY nf.member_casual, nf.start_station_name
+	order by nf.start_station_name;
+
+	select distinct COUNT(nf.member_casual) as casual_Customer, nf.end_station_name,
+	ROUND(AVG(GP.end_lat),4) AS casual_arr_lat, Round(AVG(GP.end_lng),4) AS casual_arr_lng
+	FROM [google_portfplio_project].[dbo].[null_free] NF
+	join [google_portfplio_project].[dbo].[project] GP
+	on nf.ride_id = gp.ride_id
+	where nf.member_casual = 'casual'
+	GROUP BY nf.member_casual, nf.end_station_name
+	order by nf.end_station_name;
+
+----3. total casual customers arriving--------
 select COUNT(member_casual) as Casual_Customer_arrived, end_station_name
 from [google_portfplio_project].[dbo].[null_free]
 where member_casual = 'casual'
 group by end_station_name;
 
------5. total members arriving-----------------
+-----4. total members arriving-----------------
 select COUNT(member_casual) as registered_Customer_arrived, end_station_name
 from [google_portfplio_project].[dbo].[null_free]
 where member_casual = 'member'
 group by end_station_name;
 
------6. arrival station Lat and LNG--------
-SELECT DISTINCT nf.ride_id, nf.end_station_name, ROUND(AVG(GP.end_lat),4) AS Arr_lat, Round(AVG(GP.end_lng),4) AS Arr_lng
-	FROM [google_portfplio_project].[dbo].[null_free] NF
-	join [google_portfplio_project].[dbo].[project] GP
-	on nf.ride_id = gp.ride_id
-	GROUP BY nf.ride_id, nf.end_station_name;
-
-------7. group by months--------
-with monthly_casual
-as(select COUNT(member_casual) as Casual_Customer_arrived, Month
+------5. group by months--------
+with monthly_ride
+as(select COUNT(member_casual) as Casual_Customer_arrived, member_casual, Month
 from [google_portfplio_project].[dbo].[null_free]
-where member_casual = 'casual'
+--where member_casual = 'casual'
 group by Month)
 select *
-from monthly_casual;
+from monthly_Ride;
 
 with monthly_member
 as
@@ -399,8 +446,8 @@ group by Month)
 select *
 from monthly_member;
 
--------8. group by day of week-----
-select COUNT(member_casual) as Casual_Customer_arrived, day_of_week, day
+-------6. group by day of week-----
+select COUNT(member_casual) as Casual_Customer_arrived,  day_of_week, day
 from [google_portfplio_project].[dbo].[null_free]
 where member_casual = 'casual'
 group by day_of_week, day;
@@ -410,19 +457,21 @@ from [google_portfplio_project].[dbo].[null_free]
 where member_casual = 'member'
 group by day_of_week, day;
 
------9.Average ride per customer------------------
+-----7.Average ride per customer------------------
   update [google_portfplio_project].[dbo].[null_free]
  set ride_length = cast(ride_length as time);
 
- SELECT convert(varchar(8), Cast(DateAdd(ms, AVG(CAST(DateDiff( ms, '00:00:00', cast(ride_length as time)) AS BIGINT)), '00:00:00' ) as Time )) casual_avg_ride 
+ SELECT convert(varchar(8), Cast(DateAdd(ms, AVG(CAST(DateDiff( ms, '00:00:00', 
+ cast(ride_length as time)) AS BIGINT)), '00:00:00' ) as Time )) casual_avg_ride 
 from [google_portfplio_project].[dbo].[null_free]
 where member_casual = 'casual';
 
-SELECT convert(varchar(8), Cast(DateAdd(ms, AVG(CAST(DateDiff( ms, '00:00:00', cast(ride_length as time)) AS BIGINT)), '00:00:00' ) as Time )) member_avg_ride 
+SELECT convert(varchar(8), Cast(DateAdd(ms, AVG(CAST(DateDiff( ms, '00:00:00', 
+cast(ride_length as time)) AS BIGINT)), '00:00:00' ) as Time )) member_avg_ride 
 from [google_portfplio_project].[dbo].[null_free]
 where member_casual = 'member';
 
--------10 overall ride for members and casual-------------------------
+-------8. overall ride for members and casual-------------------------
 select count(member_casual) as casual_ride
 from [google_portfplio_project].[dbo].[null_free]
 where member_casual = 'casual';
